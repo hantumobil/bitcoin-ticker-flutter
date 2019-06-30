@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'coin_data.dart';
+import 'dart:io' show Platform;
 
 class PriceScreen extends StatefulWidget {
   @override
@@ -9,34 +10,76 @@ class PriceScreen extends StatefulWidget {
 
 class _PriceScreenState extends State<PriceScreen> {
   String selectedCurrency = 'USD';
+  dynamic coinData;
 
-  List<DropdownMenuItem> getCurrencies() {
-    List<DropdownMenuItem<String>> result = [];
+  DropdownButton<String> androidDropdown() {
+    List<DropdownMenuItem<String>> menuItems = [];
     for (String currency in currenciesList) {
       var newItem = DropdownMenuItem(
         child: Text(currency),
         value: currency,
       );
 
-      result.add(newItem);
+      menuItems.add(newItem);
     }
-    return result;
+
+    return DropdownButton<String>(
+      icon: Icon(Icons.monetization_on),
+      value: selectedCurrency,
+      items: menuItems,
+      onChanged: (val) {
+        setState(() {
+          selectedCurrency = val;
+        });
+      },
+    );
   }
 
-  List<Widget> getPickerItems() {
-    List<Widget> result = [];
+  CupertinoPicker iOSPicker() {
+    List<Widget> pickerItems = [];
     for (int i = 0; i < currenciesList.length; i++) {
       var currency = currenciesList[i];
       var newItem = Text(currency);
-      result.add(newItem);
+      pickerItems.add(newItem);
     }
-    return result;
+
+    return CupertinoPicker(
+      backgroundColor: Colors.lightBlue,
+      itemExtent: 32.0,
+      onSelectedItemChanged: (index) {
+        print('selected: $index - ${pickerItems[index]}');
+      },
+      children: pickerItems,
+    );
+  }
+
+  Widget getPicker() {
+    if (Platform.isIOS) {
+      return iOSPicker();
+    } else if (Platform.isAndroid) {
+      return androidDropdown();
+    } else {
+      return null;
+    }
+  }
+
+  Future<dynamic> updateCoinData() async {
+    print('getting coin data...');
+    var data = await CoinData().getCoinData();
+    setState(() {
+      coinData = data;
+      print('finish getting coin data... ${coinData['last']}');
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    updateCoinData();
   }
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> pickerItems = getPickerItems();
-
     return Scaffold(
       appBar: AppBar(
         title: Text('🤑 Coin Ticker'),
@@ -56,7 +99,7 @@ class _PriceScreenState extends State<PriceScreen> {
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
                 child: Text(
-                  '1 BTC = ? USD',
+                  '1 BTC = ${coinData != null ? coinData['last'] : "?"} USD',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 20.0,
@@ -71,28 +114,10 @@ class _PriceScreenState extends State<PriceScreen> {
             alignment: Alignment.center,
             padding: EdgeInsets.only(bottom: 30.0),
             color: Colors.lightBlue,
-            child: CupertinoPicker(
-              backgroundColor: Colors.lightBlue,
-              itemExtent: 32.0,
-              onSelectedItemChanged: (index) {
-                print('selected: $index - ${pickerItems[index]}');
-              },
-              children: pickerItems,
-            ),
+            child: getPicker(),
           ),
         ],
       ),
     );
   }
 }
-
-//DropdownButton<String>(
-//icon: Icon(Icons.monetization_on),
-//value: selectedCurrency,
-//items: getCurrencies(),
-//onChanged: (val) {
-//setState(() {
-//selectedCurrency = val;
-//});
-//},
-//),
