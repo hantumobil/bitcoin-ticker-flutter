@@ -11,6 +11,32 @@ class PriceScreen extends StatefulWidget {
 class _PriceScreenState extends State<PriceScreen> {
   String selectedCurrency = 'USD';
   double coinRate = 0.0;
+  Map rates = {};
+
+  void resetRates() {
+    rates.forEach((k, v) {
+      rates[k] = 0.0;
+    });
+  }
+
+  void getInitialRates() {
+    for (String coin in cryptoList) {
+      rates[coin] = 0.0;
+    }
+  }
+
+  List<Coin> coins() {
+    List<Coin> result = [];
+    for (String _coin in cryptoList) {
+      var newCoin = Coin(
+        coin: _coin,
+        selectedCurrency: selectedCurrency,
+        coinRate: rates[_coin],
+      );
+      result.add(newCoin);
+    }
+    return result;
+  }
 
   DropdownButton<String> androidDropdown() {
     List<DropdownMenuItem<String>> menuItems = [];
@@ -51,7 +77,7 @@ class _PriceScreenState extends State<PriceScreen> {
       onSelectedItemChanged: (index) {
         print('selected: $index - ${pickerItems[index]}');
         setState(() {
-          coinRate = 0.0;
+          resetRates();
           selectedCurrency = currenciesList[index];
           updateCoinRate(currenciesList[index]);
         });
@@ -72,21 +98,28 @@ class _PriceScreenState extends State<PriceScreen> {
 
   Future<dynamic> updateCoinRate(currency) async {
     print('getting coin data...');
-    var data = await CoinData().getCoinData(currency);
+    Map data = {};
+    for (String coin in cryptoList) {
+      data[coin] = await CoinData().getCoinData(coin, currency);
+    }
     setState(() {
-      coinRate = data['last'];
-      print('finish getting $currency coin data... $coinRate');
+      for (String coin in cryptoList) {
+        rates[coin] = data[coin]['last'];
+      }
+      print('finish getting $currency coin data... $rates');
     });
   }
 
   @override
   void initState() {
     super.initState();
+    getInitialRates();
     updateCoinRate('USD');
   }
 
   @override
   Widget build(BuildContext context) {
+    print('rates: $rates');
     return Scaffold(
       appBar: AppBar(
         title: Text('🤑 Coin Ticker'),
@@ -95,27 +128,9 @@ class _PriceScreenState extends State<PriceScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Padding(
-            padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
-            child: Card(
-              color: Colors.lightBlueAccent,
-              elevation: 5.0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10.0),
-              ),
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
-                child: Text(
-                  '1 BTC = ${coinRate == 0.0 ? "..." : coinRate.toInt()} $selectedCurrency',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 20.0,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: coins()),
           Container(
             height: 150.0,
             alignment: Alignment.center,
@@ -124,6 +139,44 @@ class _PriceScreenState extends State<PriceScreen> {
             child: getPicker(),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class Coin extends StatelessWidget {
+  const Coin({
+    Key key,
+    @required this.coin,
+    @required this.coinRate,
+    @required this.selectedCurrency,
+  }) : super(key: key);
+
+  final String coin;
+  final double coinRate;
+  final String selectedCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(18.0, 18.0, 18.0, 0),
+      child: Card(
+        color: Colors.lightBlueAccent,
+        elevation: 5.0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 15.0, horizontal: 28.0),
+          child: Text(
+            '1 $coin = ${coinRate == 0.0 ? "..." : coinRate.toInt()} $selectedCurrency',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 20.0,
+              color: Colors.white,
+            ),
+          ),
+        ),
       ),
     );
   }
